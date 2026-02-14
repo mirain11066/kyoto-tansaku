@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="京都探索3D">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="description" content="京都探索3D - Bloom・天候・和風BGM搭載の没入型散策シミュレーター">
+    <title>京都探索 3D | Kyoto Explorer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;700&family=Zen+Kaku+Gothic+New:wght@300;400;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <canvas id="game-canvas"></canvas>
+
+    <div id="ui-layer">
+        <header id="hdr">
+            <div class="logo"><span class="k1">京</span><span class="k2">都</span><span class="k3">EXPLORER<span
+                        class="k4">3D</span></span></div>
+            <div class="hdr-r">
+                <span class="pill" id="weather-pill">☀️ 晴</span>
+                <span class="pill" id="time-pill">黄昏</span>
+                <span class="pill" id="fps-pill">--</span>
+                <button class="pill sound-pill" id="sound-pill">🔊</button>
+            </div>
+        </header>
+
+        <div id="spot-popup" class="spot-popup hide">
+            <div class="sp-ico" id="sp-ico">⛩️</div>
+            <div class="sp-body">
+                <h3 id="sp-name">-</h3>
+                <p id="sp-desc">-</p>
+                <p class="sp-dist" id="sp-dist">--m</p>
+            </div>
+            <div class="sp-tag" id="sp-tag">NEW</div>
+        </div>
+
+        <!-- Stamina bar -->
+        <div id="stamina-wrap" class="hide">
+            <div id="stamina-bar"></div>
+        </div>
+
+        <!-- Toast notifications -->
+        <div id="toast-container"></div>
+
+        <!-- Tutorial hint -->
+        <div id="tutorial" class="tutorial">
+            <p>📖 <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移動 ・ <kbd>Shift</kbd> ダッシュ ・ マウスで視点操作</p>
+        </div>
+
+        <div id="minimap"><canvas id="mm-cv" width="160" height="160"></canvas>
+            <div class="mm-you"></div>
+        </div>
+
+        <div id="crosshair"><i class="ch t"></i><i class="ch r"></i><i class="ch b"></i><i class="ch l"></i><i
+                class="ch d"></i></div>
+
+        <div id="compass"><canvas id="compass-cv" width="50" height="50"></canvas></div>
+
+        <div id="steps-counter"><span id="steps-num">0</span><span class="steps-lbl">歩</span></div>
+
+        <div id="touch-ui">
+            <div id="joy-zone">
+                <div id="joy-base">
+                    <div id="joy-knob"></div>
+                </div>
+            </div>
+            <div id="look-zone"></div>
+        </div>
+
+        <nav id="bnav">
+            <button class="nb" id="btn-cam"><span class="ni">📷</span><span class="nl">撮影</span></button>
+            <button class="nb" id="btn-map"><span class="ni">🗺️</span><span class="nl">地図</span></button>
+            <button class="nb" id="btn-ai"><span class="ni">🤖</span><span class="nl">AI</span></button>
+            <button class="nb active" id="btn-walk"><span class="ni">👣</span><span class="nl">探索</span></button>
+            <button class="nb" id="btn-trophy"><span class="ni">🏆</span><span class="nl">実績</span></button>
+            <button class="nb" id="btn-book"><span class="ni">📜</span><span class="nl">御朱印</span></button>
+            <button class="nb" id="btn-report"><span class="ni">📊</span><span class="nl">レポート</span></button>
+            <button class="nb" id="btn-cfg"><span class="ni">⚙️</span><span class="nl">設定</span></button>
+        </nav>
+
+        <div id="ad-bar" class="hide">
+            <div class="ab-inner"><span class="ab-tag">AD</span>
+                <div class="ab-txt">🍵 京都の旅をもっと楽しく ― プレミアムで広告非表示</div><button class="ab-x" id="ab-x">✕</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Interstitial -->
+    <div id="m-ad" class="mf hide">
+        <div class="ad-box">
+            <div class="ad-timer" id="ad-t">5</div>
+            <div class="ad-body">
+                <div class="ad-hero">🍵 宇治茶本舗</div>
+                <p class="ad-sub">本場・宇治の抹茶をご自宅に</p><button class="ad-cta">詳しくはこちら</button>
+            </div>
+            <button class="ad-skip hide" id="ad-skip">スキップ ▶</button>
+        </div>
+    </div>
+
+    <!-- Gosyuin -->
+    <div id="m-book" class="mf hide">
+        <div class="mc book-c"><button class="mx">✕</button>
+            <h2 class="mt">御朱印帳</h2>
+            <div class="gs-grid" id="gs-grid"></div>
+            <div class="gs-prog"><span id="gs-count">0</span>/15 収集済</div>
+        </div>
+    </div>
+
+    <!-- Settings -->
+    <div id="m-cfg" class="mf hide">
+        <div class="mc cfg-c"><button class="mx">✕</button>
+            <h2 class="mt">旅の設定</h2>
+            <div class="cfg-list">
+                <label class="cfg"><span>🌸 桜吹雪</span><input type="checkbox" checked id="opt-sakura"></label>
+                <label class="cfg"><span>🔦 懐中電灯</span><input type="checkbox" id="opt-flash"></label>
+                <label class="cfg"><span>✨ ブルーム</span><input type="checkbox" checked id="opt-bloom"></label>
+                <label class="cfg"><span>🔄 自動昼夜</span><input type="checkbox" id="opt-autocycle"></label>
+                <label class="cfg"><span>🚶 ヘッドボブ</span><input type="checkbox" checked id="opt-bob"></label>
+                <label class="cfg"><span>🏮 祇園祭モード</span><input type="checkbox" id="opt-festival"></label>
+                <div class="cfg"><span>🌸 季節</span><select id="opt-season">
+                        <option value="spring" selected>春 (桜)</option>
+                        <option value="summer">夏 (蛍)</option>
+                        <option value="autumn">秋 (紅葉)</option>
+                        <option value="winter">冬 (雪)</option>
+                    </select></div>
+                <div class="cfg"><span>🌙 時間帯</span><select id="opt-time">
+                        <option value="dawn">朝焼け</option>
+                        <option value="day">昼間</option>
+                        <option value="dusk" selected>黄昏</option>
+                        <option value="night">夜</option>
+                    </select></div>
+                <div class="cfg"><span>🌦️ 天候</span><select id="opt-weather">
+                        <option value="clear" selected>晴れ</option>
+                        <option value="rain">雨</option>
+                        <option value="snow">雪</option>
+                        <option value="fog">霧</option>
+                    </select></div>
+                <div class="cfg"><span>🎵 BGM音量</span><input type="range" min="0" max="100" value="25" id="opt-bgm">
+                </div>
+                <div class="cfg"><span>🔊 SE音量</span><input type="range" min="0" max="100" value="50" id="opt-se"></div>
+                <div class="cfg"><span>🌿 BGS音量</span><input type="range" min="0" max="100" value="15" id="opt-bgs">
+                </div>
+                <div class="cfg premium"><span>💎 プレミアム</span><button class="prem-btn">広告を非表示</button></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Map -->
+    <div id="m-map" class="mf hide">
+        <div class="mc map-c"><button class="mx">✕</button>
+            <h2 class="mt">京都案内図</h2>
+            <div class="map-wrap"><canvas id="map-cv" width="450" height="450"></canvas></div>
+            <div class="map-leg">
+                <span class="ml"><i class="md ct"></i>鳥居</span><span class="ml"><i class="md cm"></i>寺院</span>
+                <span class="ml"><i class="md cg"></i>庭園</span><span class="ml"><i class="md cb"></i>橋</span>
+                <span class="ml"><i class="md ci"></i>花街</span><span class="ml"><i class="md cy"></i>現在地</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Photo -->
+    <div id="m-photo" class="mf hide">
+        <div class="mc"><button class="mx">✕</button>
+            <h2 class="mt">📷 スクリーンショット</h2>
+            <div class="photo-container" id="photo-container">
+                <canvas id="photo-cv"></canvas>
+                <div id="photo-frame-overlay" class="photo-frame-overlay"></div>
+            </div>
+            <div class="photo-filters">
+                <button class="pbtn filter-btn active" data-filter="none">🎨 通常</button>
+                <button class="pbtn filter-btn" data-filter="sepia">🍂 セピア</button>
+                <button class="pbtn filter-btn" data-filter="mono">⬛ モノクロ</button>
+                <button class="pbtn filter-btn" data-filter="vintage">🌅 ビンテージ</button>
+            </div>
+            <div class="photo-filters" id="frame-selectors">
+                <button class="pbtn frame-btn active" data-frame="none">🖼️ 枠なし</button>
+                <button class="pbtn frame-btn" data-frame="retro">🎞️ レトロ</button>
+                <button class="pbtn frame-btn" data-frame="stamp">⛩️ 観光スタンプ</button>
+            </div>
+            <div class="photo-acts"><button class="pbtn" id="p-save">💾 保存</button><button class="pbtn" id="p-close">✕
+                    閉じる</button></div>
+        </div>
+    </div>
+
+    <!-- Start Screen -->
+    <div id="start">
+        <div class="s-bg"></div>
+        <div class="s-particles" id="s-particles"></div>
+        <div class="s-content">
+            <div class="s-gate">⛩️</div>
+            <h1 class="s-title"><span class="st1">京都探索</span><span class="st2">3D IMMERSIVE SIMULATOR</span></h1>
+            <p class="s-sub">古都の情緒あふれる街並みを ― 季節・天候・時間を自由に変えて探索しよう</p>
+            <div class="s-features">
+                <span class="sf">🌸 桜吹雪</span><span class="sf">🌧️ 天候変化</span><span class="sf">🎵 和風BGM</span><span
+                    class="sf">🌙 昼夜サイクル</span>
+            </div>
+            <button class="s-btn" id="btn-start"><span>探索を始める</span>
+                <div class="btn-glow"></div>
+            </button>
+            <div class="s-keys">
+                <p><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移動 ・ マウスで視点操作</p>
+                <p>📱 モバイル/iOS: ジョイスティック + タッチ</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="loading" class="hide">
+        <div class="ld-c">
+            <div class="ld-ring">
+                <div></div>
+                <div></div>
+                <div></div>
+                <div></div>
+            </div>
+            <h2 class="ld-t">京都を構築中</h2>
+            <p class="ld-sub" id="ld-msg">初期化...</p>
+            <div class="ld-bar">
+                <div id="ld-fill"></div>
+            </div>
+            <p class="ld-tip">💡 鳥居をくぐると御朱印がもらえます</p>
+        </div>
+    </div>
+
+    <!-- Error fallback -->
+    <div id="err-scr" class="hide">
+        <div class="ld-c">
+            <h2 class="ld-t" style="color:#e8384f">⚠ エラー</h2>
+            <p class="ld-sub" id="err-msg">読み込みに失敗しました。インターネット接続を確認してください。</p>
+            <button class="s-btn" onclick="location.reload()" style="margin-top:16px"><span>再読込</span></button>
+        </div>
+    </div>
+
+    <!-- AI Nav Overlay -->
+    <div id="ai-nav" class="ai-nav hide">
+        <div class="ai-nav-arrow" id="ai-nav-arrow">↑</div>
+        <div class="ai-nav-info">
+            <span class="ai-nav-name" id="ai-nav-name">---</span>
+            <span class="ai-nav-dist" id="ai-nav-dist">--m</span>
+        </div>
+        <button class="ai-pilot-btn" id="ai-pilot">🤖 オートパイロット</button>
+    </div>
+
+    <!-- AI Chat Modal -->
+    <div id="m-ai" class="mf hide">
+        <div class="mc ai-chat-c">
+            <button class="mx">✕</button>
+            <h2 class="mt">🤖 AI京都ガイド「みやこ」</h2>
+            <div class="ai-chat-msgs" id="ai-msgs">
+                <div class="ai-msg ai-bot"><span class="ai-avatar">👘</span>
+                    <div class="ai-bubble">ようこそ京都へ！私はAIガイドの「みやこ」です。京都の歴史や名所について何でもお聞きください！</div>
+                </div>
+            </div>
+            <div class="ai-suggestions" id="ai-suggest">
+                <button class="ai-sug" data-q="おすすめコース">🚶 おすすめコース</button>
+                <button class="ai-sug" data-q="金閣寺の歴史">✨ 金閣寺</button>
+                <button class="ai-sug" data-q="京都のグルメ">🍜 グルメ</button>
+                <button class="ai-sug" data-q="桁の名所">🌸 桁の名所</button>
+            </div>
+            <div class="ai-input-wrap">
+                <input type="text" id="ai-input" class="ai-input" placeholder="質問を入力...（例：清水寺の歴史）" autocomplete="off">
+                <button class="ai-send" id="ai-send">▶</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Compass UI -->
+    <div id="compass-wrap" class="compass-wrap">
+        <div id="compass-ring" class="compass-ring">
+            <span class="c-n">N</span><span class="c-e">E</span><span class="c-s">S</span><span class="c-w">W</span>
+        </div>
+        <div id="compass-needle" class="compass-needle"></div>
+    </div>
+
+    <!-- Bell Hint -->
+    <div id="bell-hint" class="bell-hint hide">🔔 <kbd>E</kbd> で鐘を鳴らす</div>
+
+    <!-- Omikuji Hint -->
+    <div id="kuji-hint" class="bell-hint hide" style="bottom:120px; border-color:#c41e3a">📜 <kbd>E</kbd> でおみくじを引く</div>
+
+    <!-- Omikuji Modal -->
+    <div id="m-kuji" class="mf hide">
+        <div class="mc kuji-c">
+            <button class="mx">✕</button>
+            <h2 class="mt">📜 おみくじ</h2>
+            <div class="kuji-box" id="kuji-box">
+                <div class="kuji-paper" id="kuji-paper">
+                    <div class="kuji-res" id="kuji-res">-</div>
+                    <div class="kuji-txt" id="kuji-txt">あなたの運勢は...</div>
+                </div>
+            </div>
+            <button class="s-btn" id="btn-kuji-draw"><span>もう一度引く (要参拝)</span></button>
+        </div>
+    </div>
+
+    <!-- Achievements -->
+    <div id="m-trophy" class="mf hide">
+        <div class="mc trophy-c">
+            <button class="mx">✕</button>
+            <h2 class="mt">🏆 実績バッジ</h2>
+            <div class="trophy-grid" id="trophy-grid"></div>
+            <div class="trophy-stats">
+                <div class="stat-row"><span>⏱ プレイ時間</span><span id="stat-time">00:00</span></div>
+                <div class="stat-row"><span>👣 歩数</span><span id="stat-steps">0</span></div>
+                <div class="stat-row"><span>📏 総距離</span><span id="stat-dist">0m</span></div>
+                <div class="stat-row"><span>🏃 ダッシュ距離</span><span id="stat-sprint">0m</span></div>
+                <div class="stat-row"><span>📷 撮影枚数</span><span id="stat-photos">0</span></div>
+                <div class="stat-row"><span>⛩️ 御朱印</span><span id="stat-gosyuin">0/15</span></div>
+                <div class="stat-row"><span>🤖 AI会話</span><span id="stat-aichat">0</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Exploration Report -->
+    <div id="m-report" class="mf hide">
+        <div class="mc report-c">
+            <button class="mx">✕</button>
+            <h2 class="mt">📊 探索レポート</h2>
+            <div class="report-summary" id="report-summary">
+                <div class="report-hero">
+                    <div class="report-title">京都探索 完了度</div>
+                    <div class="report-progress-ring" id="report-ring">
+                        <svg viewBox="0 0 120 120">
+                            <circle class="rp-bg" cx="60" cy="60" r="54" />
+                            <circle class="rp-fill" cx="60" cy="60" r="54" id="rp-fill" />
+                        </svg>
+                        <span class="rp-pct" id="rp-pct">0%</span>
+                    </div>
+                </div>
+                <div class="report-cards" id="report-cards"></div>
+                <div class="report-visited" id="report-visited"></div>
+                <div class="report-share">
+                    <button class="share-btn" id="share-btn">📋 結果をシェア</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Only THREE.js core is needed - controls implemented inline -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/ai.js"></script>
+    <script src="js/gameplay.js"></script>
+    <script src="js/app.js"></script>
+</body>
+
+</html>
